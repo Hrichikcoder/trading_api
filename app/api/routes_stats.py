@@ -1,125 +1,132 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..db import get_db
-from ..services import fetch_ohlcv, calculate_indicator
-import pandas as pd
+from .. import services
+import math
 
-router = APIRouter(prefix="/stats", tags=["stats"])
+router = APIRouter(prefix="/stats", tags=["Stats"])
+
+# --- 1. STATIC ROUTES (MUST BE FIRST) ---
 
 @router.get("/supported_indicators")
 def get_supported_indicators():
     return {
-        "supported_indicators": ["ema", "sma", "rsi", "macd", "bb", "stoch", "atr", "obv"],
-        "usage_examples": [
-            "/stats/BTC-USD/rsi?period=14",
-            "/stats/AAPL/bb", 
-            "/stats/EURUSD=X/ema?period=50"
-        ]
+        "trend": ["sma_period", "ema_period", "macd_fast_slow_signal"],
+        "momentum": ["rsi_period", "stoch_k_d_smooth"],
+        "volatility": ["bb_period_std", "atr_period"],
+        "volume": ["obv"]
     }
 
 @router.get("/strategy/backtest")
-def backtest_strategy(
-    symbol: str = "BTC-USD", 
+def run_backtest(
+    symbol: str, 
     short_period: int = 12, 
     long_period: int = 26, 
-    tf: str = "1d",
     db: Session = Depends(get_db)
 ):
-    print(f"Backtesting {symbol} on {tf}...")
-    
-    symbol = symbol.upper()
-    
-    df = fetch_ohlcv(symbol, tf, db)
+    # 1. Fetch Data
+    df = services.get_or_fetch_data(symbol, "1d", db)
     if df is None:
-        raise HTTPException(status_code=404, detail=f"Data not found for {symbol}")
+        raise HTTPException(status_code=404, detail="Data not found")
 
+    # 2. Calculate Indicators
     df.ta.ema(length=short_period, append=True)
     df.ta.ema(length=long_period, append=True)
     
     short_col = f"EMA_{short_period}"
     long_col = f"EMA_{long_period}"
-    
-    if short_col not in df.columns or long_col not in df.columns:
-         raise HTTPException(status_code=500, detail="Indicator calculation failed.")
 
     trades = []
-    position = None 
+    position = None
     entry_price = 0
     entry_date = None
-    
-    for i in range(long_period, len(df)):
-        s = df[short_col].iloc[i]
-        l = df[long_col].iloc[i]
-        prev_s = df[short_col].iloc[i-1]
-        prev_l = df[long_col].iloc[i-1]
-        price = df['close'].iloc[i]
-        date = df.index[i]
 
-        if prev_s < prev_l and s > l and position is None:
+    # 3. Run Strategy Logic
+    for i in range(1, len(df)):
+        current_short = df[short_col].iloc[i]
+        current_long = df[long_col].iloc[i]
+        prev_short = df[short_col].iloc[i-1]
+        prev_long = df[long_col].iloc[i-1]
+        
+        price = df['close'].iloc[i]
+        timestamp = df.index[i]
+
+        # Golden Cross (BUY)
+        if prev_short < prev_long and current_short > current_long and position is None:
             position = 'LONG'
             entry_price = price
-            entry_date = date
+            entry_date = timestamp
+
+        # Death Cross (SELL)
+        elif prev_short > prev_long and current_short < current_long and position == 'LONG':
+            position = None
+            exit_price = price
+            pnl = ((exit_price - entry_price) / entry_price) * 100
             
-        elif prev_s > prev_l and s < l and position == 'LONG':
-            pnl_percent = ((price - entry_price) / entry_price) * 100
             trades.append({
-                "entry_date": str(entry_date).split(" ")[0], 
-                "exit_date": str(date).split(" ")[0],
+                "entry_date": str(entry_date).split()[0],
+                "exit_date": str(timestamp).split()[0],
                 "entry_price": round(entry_price, 2),
-                "exit_price": round(price, 2),
-                "pnl_percent": round(pnl_percent, 2)
+                "exit_price": round(exit_price, 2),
+                "pnl_percent": round(pnl, 2)
             })
-            position = None 
+
+    # 4. Calculate Stats
+    total_trades = len(trades)
+    wins = len([t for t in trades if t['pnl_percent'] > 0])
+    win_rate = (wins / total_trades * 100) if total_trades > 0 else 0
+    net_return = sum([t['pnl_percent'] for t in trades])
 
     return {
         "symbol": symbol,
         "strategy": "ema_crossover",
-        "net_return_percent": round(sum(t['pnl_percent'] for t in trades), 2),
-        "total_trades": len(trades),
-        "trades": trades 
+        "net_return_percent": round(net_return, 2),
+        "win_rate": round(win_rate, 2),
+        "total_trades": total_trades,
+        "trades": trades
     }
 
+# --- 2. DYNAMIC ROUTES (MUST BE LAST) ---
+# This catches everything else, so it must be at the bottom.
+
 @router.get("/{symbol}/{indicator}")
-def get_stats(
+def get_indicator_stats(
     symbol: str, 
     indicator: str, 
-    tf: str = Query("1d"), 
-    period: int = Query(14),
+    tf: str = Query("1d", description="Timeframe"),
     db: Session = Depends(get_db)
 ):
-    symbol = symbol.upper()
-    
-    df = fetch_ohlcv(symbol, tf, db)
-    if df is None or df.empty:
-        raise HTTPException(status_code=404, detail=f"No data found for {symbol}")
+    # 1. Fetch Data
+    df = services.get_or_fetch_data(symbol, tf, db)
+    if df is None:
+        raise HTTPException(status_code=404, detail="Data not found")
 
-    algo = indicator.split("_")[0]
-    processed_df, col_name = calculate_indicator(df, algo, period=period)
-    
-    if processed_df is None:
-        raise HTTPException(status_code=400, detail=f"Calculation failed for {indicator}")
+    # 2. Calculate Indicator
+    series, params = services.calculate_indicator(df, indicator.lower())
+    if series is None:
+        raise HTTPException(status_code=400, detail="Calculation failed")
 
-    raw_values = processed_df[col_name].fillna(0).tolist()
-    
-    if algo == "obv":
-        clean_values = [int(v) for v in raw_values]
-    else:
-        clean_values = [round(float(v), 2) for v in raw_values]
+    # 3. Format Values
+    values = [v if not math.isnan(v) else None for v in series.tolist()]
+    timestamps = df.index.astype(str).tolist()
 
-    signals = ["NEUTRAL"] * len(clean_values)
-    if algo == "rsi":
-        signals = ["SELL" if v > 70 else "BUY" if v < 30 else "NEUTRAL" for v in clean_values]
-    elif algo == "stoch":
-         signals = ["SELL" if v > 80 else "BUY" if v < 20 else "NEUTRAL" for v in clean_values]
-
-    limit = 100
+    # 4. Generate Signals
+    signals = []
+    base_name = indicator.split('_')[0]
     
+    for v in values:
+        sig = "NEUTRAL"
+        if v is not None:
+            if base_name == "rsi":
+                if v > 70: sig = "SELL"
+                elif v < 30: sig = "BUY"
+        signals.append(sig)
+
     return {
         "symbol": symbol,
         "indicator": indicator,
-        "parameters": {"period": period},
-        "count": limit,
-        "values": clean_values[-limit:], 
-        "buy_sell_signals": signals[-limit:],
-        "timestamps": [str(t).split(" ")[0] for t in processed_df.index[-limit:]]
+        "parameters": params,
+        "values": values,
+        "buy_sell_signals": signals,
+        "timestamps": timestamps
     }

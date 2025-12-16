@@ -1,16 +1,5 @@
-# Ignore the virtual environment
 .venv/
-venv/
-env/
-
-# Ignore python cache files
 __pycache__/
-*.py[cod]
-
-# Ignore the local database (it will be recreated automatically)
-*.db
-ohlcv.db
-
-# Ignore OS files
+*.pyc
+ochlv.db
 .DS_Store
-Thumbs.db

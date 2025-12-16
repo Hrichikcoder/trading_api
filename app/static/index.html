@@ -3,279 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuantBoard - Algo Trading Dashboard</title>
-    
+    <title>QuantBoard - Professional</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-
     <style>
-        /* --- 1. THEME VARIABLES --- */
         :root {
-            --bg-body: #111827;       
-            --bg-card: #1f2937;       
-            --bg-nav: #1f2937;
-            --text-main: #ffffff;     
-            --text-muted: #9ca3af;    
-            --border-color: #374151;
-            --accent: #818cf8;        
-            --input-bg: #111827;
+            --bg-body: #0f172a; --bg-card: #1e293b; --text-main: #f8fafc; --text-muted: #94a3b8;
+            --border: #334155; --accent: #6366f1;
         }
-
-        body.light-mode {
-            --bg-body: #f3f4f6;       
-            --bg-card: #ffffff;       
-            --bg-nav: #ffffff;
-            --text-main: #1f2937;     
-            --text-muted: #6b7280;
-            --border-color: #e5e7eb;
-            --accent: #4f46e5;        
-            --input-bg: #ffffff;
+        [data-theme="light"] {
+            --bg-body: #f1f5f9; --bg-card: #ffffff; --text-main: #0f172a; --text-muted: #64748b;
+            --border: #e2e8f0; --accent: #4f46e5;
         }
-
-        /* --- 2. SCREEN STYLES --- */
-        body { 
-            background-color: var(--bg-body); 
-            color: var(--text-main); 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            transition: all 0.3s ease;
-        }
-
-        /* Elements hidden on screen, visible in PDF */
-        .print-only { display: none !important; }
-
-        .navbar { 
-            background-color: var(--bg-nav) !important; 
-            border-bottom: 1px solid var(--border-color);
-        }
+        body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', sans-serif; transition: 0.3s; }
+        .card { background-color: var(--bg-card); border: 1px solid var(--border); }
+        .card-header { border-bottom: 1px solid var(--border); font-weight: 600; }
+        .form-control, .form-select { background-color: var(--bg-body); color: var(--text-main); border: 1px solid var(--border); }
         
-        .card { 
-            background-color: var(--bg-card); 
-            border: 1px solid var(--border-color); 
-            border-radius: 12px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .card-header { 
-            border-bottom: 1px solid var(--border-color); 
-            color: var(--text-main);
-            font-weight: 600; 
-        }
-
-        .metric-value { font-size: 2.2rem; font-weight: 800; color: var(--text-main); }
-        .metric-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-
-        .table { --bs-table-color: var(--text-main); --bs-table-bg: transparent; }
-        .table thead th { border-bottom: 2px solid var(--border-color); color: var(--text-muted); }
-        .table td { border-bottom: 1px solid var(--border-color); color: var(--text-main); }
-        .table-hover tbody tr:hover { background-color: rgba(128, 128, 128, 0.1); }
-
-        .form-control, .form-select {
-            background-color: var(--input-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-        }
+        /* --- VISIBILITY FIX --- */
+        .table { color: var(--text-main); --bs-table-color: var(--text-main); }
+        .table thead th { background-color: var(--bg-card); color: var(--text-muted); border-bottom: 2px solid var(--border); }
+        .table tbody td { border-bottom: 1px solid var(--border); vertical-align: middle; }
         
-        .btn-primary { background-color: var(--accent); border-color: var(--accent); }
-        .text-success-custom { color: #10b981 !important; }
-        .text-danger-custom { color: #ef4444 !important; }
-        .spinner-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; }
+        /* Modal Fix for Dark Mode */
+        .modal-content { background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); }
+        .modal-header { border-bottom: 1px solid var(--border); }
+        .modal-footer { border-top: 1px solid var(--border); }
+        .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
+        .metric-val { font-size: 2rem; font-weight: 800; }
+        .text-success-c { color: #10b981 !important; }
+        .text-danger-c { color: #ef4444 !important; }
+        #loader { position: fixed; inset: 0; background: rgba(15,23,42,0.95); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .hidden { display: none !important; }
-
-        /* --- 3. PROFESSIONAL PDF STYLES --- */
-        @media print {
-            /* Hide UI Elements */
-            .navbar, .btn, .no-print, #loader, .form-control, .form-select { display: none !important; }
-            
-            /* Show Report Headers */
-            .print-only { display: block !important; }
-
-            /* Reset Page Colors */
-            body { 
-                background-color: white !important; 
-                color: black !important; 
-                font-family: 'Times New Roman', serif; /* Professional Serif Font for Report */
-                font-size: 12pt;
-                margin: 0;
-                padding: 0;
-            }
-
-            /* Container Layout */
-            .container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-            
-            /* Professional Header */
-            .report-header {
-                text-align: center;
-                margin-bottom: 30px;
-                border-bottom: 2px solid #000;
-                padding-bottom: 10px;
-            }
-            .report-title { font-size: 24pt; font-weight: bold; text-transform: uppercase; }
-            .report-meta { font-size: 10pt; color: #555; margin-top: 5px; }
-
-            /* Metrics Grid for Print */
-            .row.g-3 { display: flex; justify-content: space-between; margin-bottom: 20px; }
-            .col-md-3 { width: 23%; float: left; }
-            .card { 
-                border: 1px solid #000 !important; 
-                box-shadow: none !important; 
-                background: white !important; 
-                color: black !important;
-                border-radius: 0 !important;
-            }
-            .metric-value { font-size: 1.5rem !important; color: black !important; }
-            .metric-label { color: #333 !important; }
-
-            /* Table Styling */
-            .card-body { max-height: none !important; overflow: visible !important; }
-            .col-lg-8 { width: 100% !important; flex: 0 0 100%; max-width: 100%; }
-            .col-lg-4 { display: none !important; } /* Hide Live Checker in Print */
-            
-            .table { width: 100%; border-collapse: collapse; }
-            .table th { 
-                background-color: #f0f0f0 !important; 
-                color: black !important; 
-                font-weight: bold; 
-                border: 1px solid #000 !important;
-                padding: 8px;
-            }
-            .table td { 
-                border: 1px solid #ccc !important; 
-                color: black !important; 
-                padding: 6px;
-            }
-            .text-success-custom { color: #000 !important; font-weight: normal; } /* Remove green for print readability */
-            .text-danger-custom { color: #000 !important; font-weight: normal; }
-
-            /* Footer */
-            .print-footer {
-                position: fixed;
-                bottom: 0;
-                width: 100%;
-                text-align: center;
-                font-size: 9pt;
-                border-top: 1px solid #ccc;
-                padding-top: 5px;
-            }
-        }
     </style>
 </head>
 <body>
 
-<div id="loader" class="spinner-overlay">
-    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+<div id="loader">
+    <div class="spinner-border text-primary mb-3"></div>
+    <div class="text-white">Fetching Data...</div>
 </div>
 
-<div class="print-only report-header">
-    <div class="report-title">Algorithmic Trading Performance Report</div>
-    <div class="report-meta">
-        Generated by QuantBoard • Strategy: EMA Crossover • Asset: BTC-USD • Date: <span id="print-date"></span>
-    </div>
-</div>
-
-<nav class="navbar navbar-expand-lg mb-4 sticky-top">
-    <div class="container-fluid px-4">
-        <a class="navbar-brand d-flex align-items-center" href="#">
-            <i class="bi bi-graph-up-arrow text-primary me-2"></i>
-            <span class="fw-bold" style="color: var(--text-main);">QuantBoard</span>
-        </a>
-        <div class="d-flex gap-2 align-items-center">
-            <button onclick="toggleTheme()" class="btn btn-outline-secondary btn-sm" title="Toggle Theme">
-                <i id="theme-icon" class="bi bi-sun-fill"></i>
-            </button>
-            <button onclick="window.print()" class="btn btn-primary btn-sm">
-                <i class="bi bi-printer"></i> Print Report
-            </button>
-            <a href="/docs" target="_blank" class="btn btn-outline-secondary btn-sm" style="border-color: var(--accent); color: var(--accent);">
-                API Docs
-            </a>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow text-primary"></i> QuantBoard</h3>
+            <small class="text-muted">Data Source: <span class="badge bg-secondary">Local DB (5 Years)</span></small>
         </div>
-    </div>
-</nav>
-
-<div class="container" id="dashboard-content">
-    
-    <div class="row mb-4 align-items-end no-print">
-        <div class="col-md-8">
-            <h2 class="fw-bold mb-1">Strategy Performance</h2>
-            <p class="text-muted mb-0">BTC-USD | EMA Crossover (12/26) | Daily</p>
-        </div>
-        <div class="col-md-4 text-end">
-            <span class="badge bg-secondary" id="current-date"></span>
-        </div>
+        <button onclick="toggleTheme()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-moon-stars"></i> Theme</button>
     </div>
 
-    <div class="row mb-4 g-3">
-        <div class="col-md-3">
-            <div class="card p-4 text-center h-100">
-                <div class="metric-label">Net Return</div>
-                <div id="net-return" class="metric-value">--%</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card p-4 text-center h-100">
-                <div class="metric-label">Win Rate</div>
-                <div id="win-rate" class="metric-value">--%</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card p-4 text-center h-100">
-                <div class="metric-label">Total Trades</div>
-                <div id="total-trades" class="metric-value">--</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card p-4 text-center h-100">
-                <div class="metric-label">Avg PnL</div>
-                <div id="avg-pnl" class="metric-value">--%</div>
-            </div>
-        </div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="card p-3 text-center"><small class="text-muted">NET RETURN (5Y)</small><div id="net-return" class="metric-val">--</div></div></div>
+        <div class="col-md-3"><div class="card p-3 text-center"><small class="text-muted">WIN RATE</small><div id="win-rate" class="metric-val">--</div></div></div>
+        <div class="col-md-3"><div class="card p-3 text-center"><small class="text-muted">TOTAL TRADES</small><div id="total-trades" class="metric-val">--</div></div></div>
+        <div class="col-md-3"><div class="card p-3 text-center"><small class="text-muted">AVG PNL</small><div id="avg-pnl" class="metric-val">--</div></div></div>
     </div>
 
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center no-print">
-                    <span>Trade History</span>
-                    <span class="badge bg-primary rounded-pill" id="trade-count-badge">0</span>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Trade History (Last 5)</span>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#historyModal">
+                        View All History
+                    </button>
                 </div>
-                <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+                <div class="card-body p-0">
                     <table class="table table-hover mb-0">
-                        <thead class="sticky-top" style="background-color: var(--bg-card); z-index: 2;">
-                            <tr>
-                                <th>Entry Date</th>
-                                <th>Exit Date</th>
-                                <th>Entry ($)</th>
-                                <th>Exit ($)</th>
-                                <th class="text-end">PnL %</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Entry</th><th>Exit</th><th>In ($)</th><th>Out ($)</th><th class="text-end">PnL %</th></tr></thead>
                         <tbody id="trades-table"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4 no-print">
+        <div class="col-lg-4">
             <div class="card h-100">
-                <div class="card-header">Live Signal Check</div>
+                <div class="card-header">Advanced Signal Check</div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Asset</label>
-                        <input type="text" id="symbol-input" class="form-control" value="ETH-USD">
+                    <label class="small text-muted mb-1">Asset</label>
+                    <input id="sym-in" type="text" class="form-control mb-3" value="ETH-USD">
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-7">
+                            <label class="small text-muted mb-1">Indicator</label>
+                            <select id="ind-sel" class="form-select" onchange="updatePlaceholder()">
+                                <option value="sma">SMA</option>
+                                <option value="ema">EMA</option>
+                                <option value="rsi">RSI</option>
+                                <option value="bb">Bollinger Bands</option>
+                                <option value="macd">MACD</option>
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <label class="small text-muted mb-1">Params</label>
+                            <input id="ind-param" type="text" class="form-control" value="20" placeholder="e.g. 50">
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Indicator</label>
-                        <select class="form-select" id="indicator-select">
-                            <option value="rsi">RSI</option>
-                            <option value="sma">SMA</option>
-                            <option value="ema">EMA</option>
-                            <option value="bb">Bollinger Bands</option>
-                            <option value="atr">ATR</option>
-                            <option value="obv">OBV</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary w-100 mb-4" onclick="fetchIndicator()">Check</button>
-                    <div id="indicator-result" class="p-4 rounded border text-center">
-                        <small class="text-muted">Result...</small>
+                    
+                    <button onclick="checkSignal()" class="btn btn-primary w-100 mb-3">Analyze Signal</button>
+                    
+                    <div id="res-box" class="p-3 border rounded text-center" style="background: var(--bg-body);">
+                        <small class="text-muted">Select indicator and params</small>
                     </div>
                 </div>
             </div>
@@ -283,101 +114,115 @@
     </div>
 </div>
 
-<div class="print-only print-footer">
-    CONFIDENTIAL - Generated by Automated Trading System
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Full Trade History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-hover">
+                    <thead><tr><th>Entry</th><th>Exit</th><th>In ($)</th><th>Out ($)</th><th class="text-end">PnL %</th></tr></thead>
+                    <tbody id="modal-table-body"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Theme Logic
+    let isDark = true;
     function toggleTheme() {
-        const body = document.body;
-        const icon = document.getElementById('theme-icon');
-        body.classList.toggle('light-mode');
-        if (body.classList.contains('light-mode')) {
-            icon.classList.replace('bi-sun-fill', 'bi-moon-stars-fill');
-            localStorage.setItem('theme', 'light');
-        } else {
-            icon.classList.replace('bi-moon-stars-fill', 'bi-sun-fill');
-            localStorage.setItem('theme', 'dark');
-        }
+        isDark = !isDark;
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     }
-    if (localStorage.getItem('theme') === 'light') toggleTheme();
 
-    // Data Logic
-    const today = new Date().toLocaleDateString();
-    document.getElementById('current-date').innerText = today;
-    document.getElementById('print-date').innerText = today;
+    function updatePlaceholder() {
+        const type = document.getElementById('ind-sel').value;
+        const input = document.getElementById('ind-param');
+        if(type === 'macd') input.value = "12_26_9";
+        else if(type === 'bb') input.value = "20_2";
+        else input.value = "20";
+    }
 
-    async function loadBacktest() {
+    async function loadData() {
         try {
-            const response = await fetch('/stats/strategy/backtest?symbol=BTC-USD');
-            const data = await response.json();
+            const res = await fetch('/stats/strategy/backtest?symbol=BTC-USD');
+            const data = await res.json();
             
-            // Metrics
-            const netReturnEl = document.getElementById('net-return');
-            netReturnEl.innerText = data.net_return_percent + "%";
-            netReturnEl.className = `metric-value ${data.net_return_percent >= 0 ? 'text-success-custom' : 'text-danger-custom'}`;
+            document.getElementById('net-return').innerText = (data.net_return || 0) + "%";
+            document.getElementById('total-trades').innerText = data.total_count || 0;
             
-            document.getElementById('total-trades').innerText = data.total_trades;
-            document.getElementById('trade-count-badge').innerText = data.total_trades;
-
-            const wins = data.trades.filter(t => t.pnl_percent > 0).length;
-            const winRate = data.total_trades > 0 ? ((wins / data.total_trades) * 100).toFixed(1) : 0;
+            const trades = data.recent_trades || [];
+            const allTrades = data.all_trades || [];
+            
+            const wins = allTrades.filter(t => t.pnl_percent > 0).length;
+            const winRate = allTrades.length > 0 ? ((wins/allTrades.length)*100).toFixed(1) : 0;
+            
             document.getElementById('win-rate').innerText = winRate + "%";
+            document.getElementById('avg-pnl').innerText = (data.total_count > 0) ? (data.net_return / data.total_count).toFixed(2) + "%" : "0%";
 
-            const avgPnl = (data.net_return_percent / data.total_trades).toFixed(2);
-            const avgEl = document.getElementById('avg-pnl');
-            avgEl.innerText = avgPnl + "%";
-            avgEl.className = `metric-value ${avgPnl >= 0 ? 'text-success-custom' : 'text-danger-custom'}`;
-            
-            // Table
+            // 1. Populate Dashboard Table (Last 5)
             const tbody = document.getElementById('trades-table');
             tbody.innerHTML = '';
-            [...data.trades].reverse().forEach(t => {
-                const pnlClass = t.pnl_percent >= 0 ? 'text-success-custom' : 'text-danger-custom';
-                const row = `<tr>
-                    <td>${t.entry_date}</td>
-                    <td>${t.exit_date}</td>
-                    <td>$${t.entry_price.toLocaleString()}</td>
-                    <td>$${t.exit_price.toLocaleString()}</td>
-                    <td class="text-end ${pnlClass} fw-bold">${t.pnl_percent}%</td>
+            [...trades].reverse().forEach(t => {
+                const color = t.pnl_percent >= 0 ? 'text-success-c' : 'text-danger-c';
+                tbody.innerHTML += `<tr>
+                    <td>${t.entry_date}</td><td>${t.exit_date}</td>
+                    <td>$${t.entry_price.toLocaleString()}</td><td>$${t.exit_price.toLocaleString()}</td>
+                    <td class="text-end fw-bold ${color}">${t.pnl_percent}%</td>
                 </tr>`;
-                tbody.innerHTML += row;
             });
+
+            // 2. Populate Modal Table (All Trades)
+            const modalBody = document.getElementById('modal-table-body');
+            modalBody.innerHTML = '';
+            [...allTrades].reverse().forEach(t => {
+                const color = t.pnl_percent >= 0 ? 'text-success-c' : 'text-danger-c';
+                modalBody.innerHTML += `<tr>
+                    <td>${t.entry_date}</td><td>${t.exit_date}</td>
+                    <td>$${t.entry_price.toLocaleString()}</td><td>$${t.exit_price.toLocaleString()}</td>
+                    <td class="text-end fw-bold ${color}">${t.pnl_percent}%</td>
+                </tr>`;
+            });
+
             document.getElementById('loader').classList.add('hidden');
-        } catch (e) { 
-            document.getElementById('loader').innerHTML = '<div class="text-danger">API Error</div>';
-        }
+        } catch(e) { document.getElementById('loader').classList.add('hidden'); }
     }
 
-    async function fetchIndicator() {
-        const sym = document.getElementById('symbol-input').value;
-        const ind = document.getElementById('indicator-select').value;
-        const resultDiv = document.getElementById('indicator-result');
+    async function checkSignal() {
+        const sym = document.getElementById('sym-in').value;
+        const type = document.getElementById('ind-sel').value;
+        const param = document.getElementById('ind-param').value;
+        const indString = `${type}_${param}`;
+
+        const box = document.getElementById('res-box');
+        box.innerHTML = "Calculating...";
         
-        resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div>';
         try {
-            const res = await fetch(`/stats/${sym}/${ind}`);
-            if(!res.ok) throw new Error("Error");
-            const data = await res.json();
-            const lastVal = data.values[data.values.length - 1];
-            const lastSig = data.buy_sell_signals[data.buy_sell_signals.length - 1];
+            const res = await fetch(`/stats/${sym}/${indString}`);
+            const d = await res.json();
+            let color = 'bg-secondary';
+            if(d.signal.includes('BUY') || d.signal == 'BULLISH') color = 'bg-success';
+            if(d.signal.includes('SELL') || d.signal == 'BEARISH' || d.signal == 'OVERBOUGHT') color = 'bg-danger';
             
-            let color = 'var(--accent)';
-            if(lastSig === 'BUY') color = '#10b981';
-            if(lastSig === 'SELL') color = '#ef4444';
+            let details = d.details ? `<div class="small text-muted mt-1">${d.details}</div>` : '';
 
-            resultDiv.innerHTML = `
-                <h5 class="text-muted text-uppercase small mb-2">${ind} Value</h5>
-                <h2 class="fw-bold mb-3" style="color: var(--text-main)">${lastVal}</h2>
-                <span class="badge px-4 py-2 fs-6" style="background-color: ${color}; color: white;">${lastSig}</span>
+            box.innerHTML = `
+                <h6 class="text-uppercase text-muted">${d.indicator}</h6>
+                <h2 class="fw-bold">${d.value.toFixed(2)}</h2>
+                <span class="badge ${color} px-3 py-2">${d.signal}</span>
+                ${details}
             `;
-        } catch (e) {
-            resultDiv.innerHTML = `<div class="text-danger small">Error fetching data</div>`;
-        }
+        } catch(e) { box.innerHTML = "Error fetching data"; }
     }
-    loadBacktest();
-</script>
 
+    loadData();
+</script>
 </body>
 </html>
